@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,6 +30,9 @@ namespace ArkSavegameToolkitNet
         private static readonly ArkName _byteArraysIdentifier = ArkName.Create("ByteArrays");
         private static readonly ArkName _bytesIdentifier = ArkName.Create("Bytes");
 
+        private static readonly ArkName _dinoDataList = ArkName.Create("DinoDataList");
+        private static readonly ArkName _dinoData = ArkName.Create("DinoData");
+
 
         [JsonProperty]
         public IList<GameObject> Objects
@@ -36,8 +40,7 @@ namespace ArkSavegameToolkitNet
             get { return _objects; }
             private set
             {
-                if (value == null) throw new NullReferenceException("Value cannot be null");
-                _objects = value;
+                _objects = value ?? throw new NullReferenceException("Value cannot be null");
             }
         }
         private IList<GameObject> _objects = new List<GameObject>();
@@ -48,8 +51,7 @@ namespace ArkSavegameToolkitNet
             get { return _dataFiles; }
             set
             {
-                if (value == null) throw new NullReferenceException("Value cannot be null");
-                _dataFiles = value;
+                _dataFiles = value ?? throw new NullReferenceException("Value cannot be null");
             }
         }
         private IList<string> _dataFiles = new List<string>();
@@ -60,8 +62,7 @@ namespace ArkSavegameToolkitNet
             get { return _embeddedData; }
             set
             {
-                if (value == null) throw new NullReferenceException("Value cannot be null");
-                _embeddedData = value;
+                _embeddedData = value ?? throw new NullReferenceException("Value cannot be null");
             }
         }
         private IList<EmbeddedData> _embeddedData = new List<EmbeddedData>();
@@ -110,7 +111,7 @@ namespace ArkSavegameToolkitNet
             var fi = new FileInfo(_fileName);
             var size = fi.Length;
             SaveTime = fi.LastWriteTimeUtc;
-            //if (size == 0) return false;
+            if (size == 0) return;
 
             _mmf = MemoryMappedFile.CreateFromFile(_fileName, FileMode.Open, null, 0L, MemoryMappedFileAccess.Read);
             _va = _mmf.CreateViewAccessor(0L, 0L, MemoryMappedFileAccess.Read);
@@ -129,18 +130,80 @@ namespace ArkSavegameToolkitNet
 
         private bool LoadCryopodEntries()
         {
-            
+
+            int nextObjectId = 0;
+
+            //parse any vivarium creatures
+            var vivariumList = Objects.Where(o => o.ClassName.Name == "BP_Vivarium_C" && o.Location!=null).ToList();
+            Guid currentId = Guid.Empty;
+
+            foreach(var vivarium in vivariumList)
+            {
+
+                if (!currentId.Equals(vivarium.Uuid))
+                {
+                    currentId = vivarium.Uuid;
+
+                    //get dino data (PropertyArray)
+                    if (vivarium.Properties.ContainsKey(_dinoDataList))
+                    {
+
+
+                        PropertyArray dinoArray = vivarium.GetProperty<PropertyArray>(_dinoDataList);
+                        foreach(StructPropertyList dinoData in dinoArray.Value)
+                        {
+                            if (dinoData.Properties.ContainsKey(_dinoData))
+                            {
+                                PropertyArray dinoDetails = dinoData.GetProperty<PropertyArray>(_dinoData);
+
+                                nextObjectId = Objects.Count();
+                                sbyte[] sbyteData = dinoDetails.Value.Cast<sbyte>().ToArray();
+                                byte[] byteData = (byte[])(Array)sbyteData;
+
+
+                                using (MemoryMappedFile cryoMmf = MemoryMappedFile.CreateNew(null, byteData.Length))
+                                {
+                                    using (MemoryMappedViewStream stream = cryoMmf.CreateViewStream())
+                                    {
+                                        BinaryWriter writer = new BinaryWriter(stream);
+                                        writer.Write(byteData);
+                                    }
+
+                                    using (MemoryMappedViewAccessor cryoVa = cryoMmf.CreateViewAccessor(0L, 0L, MemoryMappedFileAccess.Read))
+                                    {
+                                        ArkArchive cryoArchive = new ArkArchive(cryoVa, byteData.Length, _arkNameCache, _arkStringCache, _exclusivePropertyNameTree);
+
+                                        var result = UpdateVivariumCreatureStatus(cryoArchive);
+                                        result.Item1.Location = vivarium.Location;
+
+                                        
+                                        Objects.Add(result.Item1);
+                                        Objects.Add(result.Item2);
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+
             //Now parse out cryo creature data
             var cryoPodEntries = Objects.Where(WhereEmptyCryopodHasCustomItemDataBytesArrayBytes).ToList();
-            int nextObjectId = Objects.Count();
+            
+            nextObjectId = Objects.Count();
 
             if (cryoPodEntries != null && cryoPodEntries.Count() > 0)
             {
-                foreach (GameObject cryoPod in cryoPodEntries)
+                
+                foreach(var cryoPod in cryoPodEntries)
                 {
+
                     var byteList = SelectCustomDataBytesArrayBytes(cryoPod);
                     sbyte[] sbyteValues = byteList.Value.Cast<sbyte>().ToArray();
                     byte[] cryoDataBytes = (byte[])(Array)sbyteValues;
+
 
                     using (MemoryMappedFile cryoMmf = MemoryMappedFile.CreateNew(null, cryoDataBytes.Length))
                     {
@@ -157,13 +220,16 @@ namespace ArkSavegameToolkitNet
                             var result = UpdateCryoCreatureStatus(cryoArchive);
                             var ownerInventoryRef = cryoPod.GetProperty<PropertyObject>(_ownerInventory);
 
-                            var ownerContainerInventory = Objects.FirstOrDefault(o => o.ObjectId == ownerInventoryRef.Value.ObjectId);
-                            if (ownerContainerInventory != null)
+                            if (ownerInventoryRef != null && ownerInventoryRef.Value?.ObjectId != null)
                             {
-                                var ownerContainer = Objects.FirstOrDefault(o => o.Properties.ContainsKey(_myInventoryComponent) && o.GetProperty<PropertyObject>(_myInventoryComponent).Value.ObjectId == ownerContainerInventory.ObjectId);
-                                if (ownerContainer != null && ownerContainer.Location != null)
+                                var ownerContainerInventory = Objects.FirstOrDefault(o => o.ObjectId == ownerInventoryRef.Value.ObjectId);
+                                if (ownerContainerInventory != null)
                                 {
-                                    result.Item1.Location = ownerContainer.Location;
+                                    var ownerContainer = Objects.FirstOrDefault(o => o.Properties.ContainsKey(_myInventoryComponent) && o.GetProperty<PropertyObject>(_myInventoryComponent).Value.ObjectId == ownerContainerInventory.ObjectId);
+                                    if (ownerContainer != null && ownerContainer.Location != null)
+                                    {
+                                        result.Item1.Location = ownerContainer.Location;
+                                    }
                                 }
                             }
 
@@ -171,10 +237,11 @@ namespace ArkSavegameToolkitNet
                             Objects.Add(result.Item2);
                         }
 
-                    }
 
-                }
-   
+
+                    }
+                };
+
             }
 
             return true;
@@ -218,6 +285,33 @@ namespace ArkSavegameToolkitNet
                 statusobject.loadProperties(cryoArchive, new GameObject(), 0, null);
                 return new Tuple<GameObject, GameObject>(dino, statusobject);
             }
+
+            Tuple<GameObject, GameObject> UpdateVivariumCreatureStatus(ArkArchive vivariumArchive)
+            {
+                vivariumArchive.GetBytes(4);
+
+                nextObjectId++;
+                var dino = new GameObject(vivariumArchive)
+                {
+                    ObjectId = nextObjectId,
+                    IsVivarium = true
+                };
+
+                nextObjectId++;
+                var statusobject = new GameObject(vivariumArchive)
+                {
+                    ObjectId = nextObjectId
+                };
+
+                dino.loadProperties(vivariumArchive, new GameObject(), 0, null);
+
+                var statusComponentRef = dino.GetProperty<PropertyObject>(_myCharacterStatusComponent);
+                statusComponentRef.Value.ObjectId = statusobject.ObjectId;
+
+                statusobject.loadProperties(vivariumArchive, new GameObject(), 0, null);
+                return new Tuple<GameObject, GameObject>(dino, statusobject);
+            }
+
 
         }
 
@@ -314,9 +408,9 @@ namespace ArkSavegameToolkitNet
 
                 for (int n = 0; n < unknownValue; n++)
                 {
-                    var unknownFlags = archive.GetInt();
-                    var objectCount = archive.GetInt();
-                    var name = archive.GetString();
+                    archive.GetInt(); //unknownFlags
+                    archive.GetInt(); //objectCount
+                    archive.GetString(); //name
                 }
             }
             _baseRead = true;
@@ -325,6 +419,8 @@ namespace ArkSavegameToolkitNet
 
         protected void readBinaryHeader(ArkArchive archive)
         {
+
+
             SaveVersion = archive.GetShort();
 
             if (SaveVersion == 5)
@@ -370,7 +466,7 @@ namespace ArkSavegameToolkitNet
                 GameTime = archive.GetFloat();
 
                 //note: unknown integer value was added in v268.22 with SaveVersion=9 [0x25 (37) on The Island, 0x26 (38) on ragnarok/center/scorched]
-                var unknownValue2 = archive.GetInt();
+                archive.GetInt(); //unknownValue2
             }
             else
             {

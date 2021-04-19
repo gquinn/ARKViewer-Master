@@ -213,7 +213,11 @@ namespace ARKViewer
                 { "ragnarok.ark", "Ragnarok"},
                 { "valguero_p.ark", "Valguero" },
                 { "crystalisles.ark", "Crystal Isles" },
-                { "genesis.ark", "Genesis" }
+                { "genesis.ark", "Genesis" },
+                { "astralark.ark", "AstralARK" },
+                { "hope.ark", "Hope"},
+                { "tunguska_p.ark", "Tunguska"},
+                { "caballus_p.ark", "Caballus"}
 
             };
 
@@ -231,6 +235,8 @@ namespace ARKViewer
             optPlayerBodyShow.Checked = !SavedConfig.HideNoBody;
             optFTPSync.Checked = SavedConfig.FtpDownloadMode == 0;
             optFTPClean.Checked = SavedConfig.FtpDownloadMode == 1;
+            optExportNoSort.Checked = !SavedConfig.SortCommandLineExport;
+            optExportSort.Checked = SavedConfig.SortCommandLineExport;
 
             switch (SavedConfig.CommandPrefix)
             {
@@ -518,6 +524,7 @@ namespace ARKViewer
             SavedConfig.HideNoStructures = optPlayerStructureHide.Checked;
             SavedConfig.HideNoBody = optPlayerBodyHide.Checked;
             SavedConfig.FtpDownloadMode = optFTPSync.Checked ? 0 : 1;
+            SavedConfig.SortCommandLineExport = optExportSort.Checked;
             SavedConfig.UpdateNotificationFile = chkUpdateNotificationFile.Checked;
             SavedConfig.UpdateNotificationSingle = chkUpdateNotificationSingle.Checked;
 

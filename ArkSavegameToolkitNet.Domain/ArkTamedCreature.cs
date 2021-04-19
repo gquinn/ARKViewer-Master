@@ -193,7 +193,7 @@ namespace ArkSavegameToolkitNet.Domain
             Construct();
 
             _saveState = saveState;
-
+            
             OwningPlayerId = creature.GetPropertyValue<int?>(_owningPlayerID);
             OwningPlayerName = creature.GetPropertyValue<string>(_owningPlayerName);
             Name = creature.GetPropertyValue<string>(_tamedName);
@@ -205,10 +205,14 @@ namespace ArkSavegameToolkitNet.Domain
             if (creature.Properties.ContainsKey(_tamingTeamId))
             {
                 TargetingTeam = creature.GetPropertyValue<int>(_tamingTeamId);
-
+                var claimedTribeId = creature.GetPropertyValue<int>(_targetingTeam);
+                if (claimedTribeId != TargetingTeam)
+                {
+                    TargetingTeam = claimedTribeId;
+                }
             }
             //override if no valid tamingTeamid returned ( 2000000000 = Unclaimed )
-            if ((ImprinterPlayerDataId != null && TargetingTeam == 2000000000) || TargetingTeam == 0)
+            if ((ImprinterPlayerDataId != null || TargetingTeam == 0))
             {
                 TargetingTeam = creature.GetPropertyValue<int>(_targetingTeam);
             }
@@ -224,6 +228,7 @@ namespace ArkSavegameToolkitNet.Domain
             BabyNextCuddleTime = creature.GetPropertyValue<double?>(_babyNextCuddleTime);
             IsNeutered = creature.GetPropertyValue<bool?>(_bNeutered) ?? false;
             IsCryo = creature.IsCryo;
+            IsVivarium = creature.IsVivarium;
             DinoAncestors = ArkTamedCreatureAncestor.FromPropertyValue(creature.GetPropertyValue<ArkArrayStruct>(_dinoAncestors));
             DinoAncestorsMale = ArkTamedCreatureAncestor.FromPropertyValue(creature.GetPropertyValue<ArkArrayStruct>(_dinoAncestorsMale));
 
@@ -317,6 +322,7 @@ namespace ArkSavegameToolkitNet.Domain
         public DateTime? BabyNextCuddleTimeApprox => _saveState?.GetApproxDateTimeOf(BabyNextCuddleTime);
         public bool IsNeutered { get; set; }
         public bool IsCryo { get; set; }
+        public bool IsVivarium { get; set; }
         public ArkTamedCreatureAncestor[] DinoAncestors { get; set; }
         public ArkTamedCreatureAncestor[] DinoAncestorsMale { get; set; }
         public sbyte[] GestationEggColors { get; set; }

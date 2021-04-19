@@ -15,6 +15,7 @@ namespace ArkSavegameToolkitNet.Domain
         private static Dictionary<string, Tuple<float, float, float, float>> _latlonCalcs = new Dictionary<string, Tuple<float, float, float, float>>
         {
             { "TheIsland", Tuple.Create(50.0f, 8000.0f, 50.0f, 8000.0f) },
+            { "Hope", Tuple.Create(50f, 6850f, 50f, 6850f) },
             { "TheCenter", Tuple.Create(30.34223747253418f, 9584.0f, 55.10416793823242f, 9600.0f) },
             { "ScorchedEarth_P", Tuple.Create(50.0f, 8000.0f, 50.0f, 8000.0f) },
             { "Aberration_P", Tuple.Create(50.0f, 8000.0f, 50.0f, 8000.0f) },
@@ -25,10 +26,12 @@ namespace ArkSavegameToolkitNet.Domain
             { "Ragnarok", Tuple.Create(50.009388f, 13100f, 50.009388f, 13100f) },
             { "TheVolcano", Tuple.Create(50.0f, 9181.0f, 50.0f, 9181.0f) },
             { "PGARK", Tuple.Create(0.0f, 6080.0f, 0.0f, 6080.0f) },
-            { "CrystalIsles" , Tuple.Create(50.0f, 13718.0f, 50.0f, 13718.0f) },
+            { "CrystalIsles" , Tuple.Create(48.7f, 16000f, 50.0f, 17000.0f) },
             { "Valguero_P" , Tuple.Create(50.0f, 8161.0f, 50.0f, 8161.0f) },
-            { "Genesis", Tuple.Create(50.0f, 10500.0f, 50.0f, 10500.0f)}
-            
+            { "Genesis", Tuple.Create(50.0f, 10500.0f, 50.0f, 10500.0f)},
+            { "AstralARK", Tuple.Create(50.0f, 2000.0f, 50.0f, 2000.0f)},
+            { "Tunguska_p", Tuple.Create(46.8f, 14000.0f,49.29f, 13300.0f) },
+            { "Caballus_p", Tuple.Create(50.0f, 8125.0f,50.0f, 8125.0f)}
         };
 
         //width, height, latitude-top, longitude-left, longitude-right, latitude-bottom
@@ -46,16 +49,20 @@ namespace ArkSavegameToolkitNet.Domain
                 _topoMapCalcs = new Dictionary<string, Tuple<int, int, float, float, float, float>>
                 {
                     { "TheIsland", Tuple.Create(1024, 1024, 7.2f, 7.2f, 92.8f, 92.8f) },
+                    { "Hope", Tuple.Create(1024, 1024, 0f, 0f, 100.0f, 100.0f) },
                     { "TheCenter", Tuple.Create(1024, 1024, -2.5f, 1f, 104.5f, 101f) },
                     { "ScorchedEarth_P", Tuple.Create(1024, 1024, 7.2f, 7.2f, 92.8f, 92.8f) },
                     { "Aberration_P", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
                     { "Extinction", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
                     { "Ragnarok", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
-                    { "CrystalIsles", Tuple.Create(1024, 1024, -1.7f, -1.5f, 99.3f, 101.0f) },
+                    { "CrystalIsles", Tuple.Create(1024, 1024, 0f, 0f, 100f, 100.0f) },
                     { "ShigoIslands", Tuple.Create(1024, 1024, -2.0f, -1.6f, 99.8f, 101.0f) },
                     { "TheVolcano", Tuple.Create(1024, 1024, -1.95f, -1.3f, 99.5f, 100.7f) },
                     { "Valguero_P", Tuple.Create(1024, 1024, -10.0f, -10.0f, 110.0f, 110.0f) },
-                    { "Genesis", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) }
+                    { "Genesis", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
+                    { "AstralARK", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
+                    { "Tunguska_p", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) },
+                    { "Caballus_p", Tuple.Create(1024, 1024, 0.0f, 0.0f, 100.0f, 100.0f) }
                 };
             }
             finally
@@ -91,7 +98,7 @@ namespace ArkSavegameToolkitNet.Domain
                 }
                 else
                 {
-                    _latlonCalcs.TryGetValue("Genesis", out vals);
+                    _latlonCalcs.TryGetValue("Extinction", out vals);
 
                     Latitude = vals.Item1 + Y / vals.Item2;
                     Longitude = vals.Item3 + X / vals.Item4;

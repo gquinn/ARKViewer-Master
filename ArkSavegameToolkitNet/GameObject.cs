@@ -64,7 +64,8 @@ namespace ArkSavegameToolkitNet
 
         //query helper fields
         private GameObjectIs _isFlags;
-        public bool IsCryo { get; set; }
+        public bool IsCryo { get; set; } = false;
+        public bool IsVivarium { get; set; } = false;
         public bool IsCreature => (_isFlags & GameObjectIs.IsCreature) == GameObjectIs.IsCreature;
         public bool IsTamedCreature => (_isFlags & GameObjectIs.IsTamedCreature) == GameObjectIs.IsTamedCreature;
         public bool IsWildCreature => (_isFlags & GameObjectIs.IsWildCreature) == GameObjectIs.IsWildCreature;
@@ -217,6 +218,7 @@ namespace ArkSavegameToolkitNet
         private static ArkName _dinoId1 = ArkName.Create("DinoID1", 0);
         private static ArkName _tamerString = ArkName.Create("TamerString", 0);
         private static ArkName _tamingTeamID = ArkName.Create("TamingTeamID", 0);
+        private static ArkName _targetTeamID = ArkName.Create("TargetingTeam", 0);
         private static ArkName _ownerName = ArkName.Create("OwnerName", 0);
         private static ArkName _bHasResetDecayTime = ArkName.Create("bHasResetDecayTime", 0);
         private static ArkName _bInitializedMe = ArkName.Create("bInitializedMe", 0);
@@ -229,6 +231,7 @@ namespace ArkSavegameToolkitNet
         private static ArkName _droppedItem = ArkName.Create("DroppedItemGenericLowQuality_C", 0);
         private static ArkName _droppedByPlayerId = ArkName.Create("DroppedByPlayerID");
         private static ArkName _customData = ArkName.Create("CustomItemDatas", 0);
+        private static ArkName _imprinterName = ArkName.Create("ImprinterName");
 
         internal static readonly ArkNameTree _dependencies = new ArkNameTree
         {
@@ -291,8 +294,45 @@ namespace ArkSavegameToolkitNet
                 }
 
                 if (Properties.ContainsKey(_dinoId1)) _isFlags |= GameObjectIs.IsCreature;
-                if (IsCreature && (Properties.ContainsKey(_tamerString) || Properties.ContainsKey(_tamingTeamID))) _isFlags |= GameObjectIs.IsTamedCreature;
-                if (IsCreature && !IsTamedCreature) _isFlags |= GameObjectIs.IsWildCreature;
+                int tamingTeamID = 0;
+                int targetingTeamId = 0;
+
+                if (IsCreature) 
+                {
+
+
+                    if (Properties.ContainsKey(_tamingTeamID))
+                    {
+                        PropertyInt32 tamingTeam = (PropertyInt32)Properties[_tamingTeamID];
+                        tamingTeamID = tamingTeam.Value.GetValueOrDefault(0);
+                    }
+
+                    if (Properties.ContainsKey(_targetTeamID))
+                    {
+                        PropertyInt32 targetingTeam = (PropertyInt32)Properties[_targetTeamID];
+                        targetingTeamId = targetingTeam.Value.GetValueOrDefault(0);
+                    }
+
+
+                    if(targetingTeamId > 1000000000)
+                    {
+                        if((tamingTeamID > 0 && tamingTeamID < 1000000000) &! Properties.ContainsKey(_imprinterName))
+                        {
+
+                        }
+                        else
+                        {
+                            _isFlags |= GameObjectIs.IsTamedCreature;
+                        }
+                    }
+
+                    
+                }
+
+                if (IsCreature && !IsTamedCreature)
+                {
+                    _isFlags |= GameObjectIs.IsWildCreature;
+                }
                 if (IsTamedCreature && (ClassName.Equals(_raft_bp_c) || ClassName.Equals(_motorraft_bp_c))) _isFlags |= GameObjectIs.IsRaftCreature;
 
                 if (Properties.ContainsKey(_currentStatusValues)) _isFlags |= GameObjectIs.IsStatusComponent;
